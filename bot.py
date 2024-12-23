@@ -105,7 +105,7 @@ async def handle_payment(update: Update, context: CallbackContext) -> None:
 # Главная асинхронная функция, которая запускает бота
 async def main() -> None:
     """Основная функция для запуска бота"""
-    TOKEN = 'your-telegram-bot-token'  # Замените на свой токен
+    TOKEN = '7754998709:AAHf8cZmQocHwmy4p4CMJxll-d5bAvyymv0' 
 
     # Создаем асинхронное приложение
     application = Application.builder().token(TOKEN).build()
