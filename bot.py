@@ -1,9 +1,8 @@
 import logging
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
-from telegram.constants import ParseMode
-import re  # Для проверки даты рождения
 from datetime import datetime
+import re
 
 # Включаем логирование для получения отладочной информации
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -122,10 +121,11 @@ async def main() -> None:
     # Регистрируем обработчики кнопок
     application.add_handler(MessageHandler(filters.TEXT, start_working_on_lessons))
 
-    # Запуск бота (уже внутри цикла событий)
+    # Запуск бота
     await application.run_polling()
 
 # Запуск асинхронной функции без asyncio.run()
 if __name__ == "__main__":
     import asyncio
-    asyncio.create_task(main())  # Это должно быть async-задание, не запускать через asyncio.run()
+    # Прямой вызов, так как библиотека сама использует цикл событий
+    asyncio.run(main())
