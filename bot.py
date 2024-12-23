@@ -1,151 +1,98 @@
-import os
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext, CallbackQueryHandler
+from telegram import ParseMode
 
-# Функции для команд
-def start(update: Update, context: CallbackContext):
-    """Приветствие и отправка видео."""
-    chat_id = update.message.chat_id
-    update.message.reply_text(
-        "Привет! Я помогу тебе рассчитать твои кармические уроки и начать их проработку."
-        "\nДля начала введи дату рождения в формате ДД.ММ.ГГГГ."
+# Включаем логирование
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Токен бота
+TOKEN = "7754998709:AAHf8cZmQocHwmy4p4CMJxll-d5bAvyymv0"
+
+# Функция старта
+async def start(update: Update, context: CallbackContext) -> None:
+    # Приветствие и отправка приветственного видео
+    user_name = update.message.from_user.first_name
+    await update.message.reply(f"Привет, {user_name}!\nДобро пожаловать в матрицу судьбы!")
+    # Здесь можно отправить видео (например, с ID видео в Telegram)
+    # await update.message.reply_video(video_id)
+
+    # Меню с кнопками
+    keyboard = [
+        [InlineKeyboardButton("Помощь", callback_data='help')],
+        [InlineKeyboardButton("Информация о системе", callback_data='info')],
+        [InlineKeyboardButton("Рассчитать кармические уроки", callback_data='calculate')],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text('Что ты хочешь сделать?', reply_markup=reply_markup)
+
+# Функция помощи
+async def help_command(update: Update, context: CallbackContext) -> None:
+    await update.message.reply("Я помогу тебе рассчитать кармические уроки.\n"
+                               "Сначала введи свою дату рождения.")
+
+# Информация о системе расчета
+async def info(update: Update, context: CallbackContext) -> None:
+    info_text = (
+        "Моя система расчета матрицы судьбы поможет тебе понять кармические уроки "
+        "и направления для личностного роста. Я разработала эту систему, чтобы помочь людям "
+        "раскрыть свой потенциал и научиться преодолевать трудности жизни."
     )
-    context.bot.send_video(chat_id=chat_id, video=open("welcome_video.mp4", "rb"))
+    await update.message.reply_text(info_text)
 
-def help_command(update: Update, context: CallbackContext):
-    """Справочная информация."""
-    update.message.reply_text(
-        "/start - Начать работу с ботом\n"
-        "/help - Помощь\n"
-        "/info - Узнать обо мне\n"
-        "/lessons - Рассчитать уроки\n"
-        "/tasks - Текущие задания\n"
-        "/progress - Мой прогресс\n"
-        "/payment - Оплатить залог\n"
-        "/charity - Узнать о благотворительности\n"
-        "/remind - Напомнить о задании\n"
-        "/cancel - Отменить участие\n"
-        "/feedback - Оставить отзыв\n"
-        "/restart - Начать заново"
-    )
+# Функция для расчета кармических уроков
+async def calculate(update: Update, context: CallbackContext) -> None:
+    await update.message.reply("Пожалуйста, введи свою дату рождения в формате ДД.ММ.ГГГГ.")
 
-def info(update: Update, context: CallbackContext):
-    """Информация о системе расчета."""
-    update.message.reply_text(
-        "Описание системы расчета будет здесь. "
-        "Это временная заглушка для команды /info."
-    )
-
-def calculate_lessons(update: Update, context: CallbackContext):
-    """Рассчитываем уроки по введенной дате."""
+# Функция для обработки введенной даты рождения
+async def handle_birthday(update: Update, context: CallbackContext) -> None:
     try:
-        date = update.message.text.strip()
-        day, month, year = map(int, date.split("."))
-        
-        # Расчеты
-        first_lesson = sum(map(int, f"{day}{month}{year}"))
-        first_lesson = first_lesson if first_lesson <= 22 else sum(map(int, str(first_lesson)))
-        
-        second_lesson = first_lesson * 2 + first_lesson
-        second_lesson = second_lesson if second_lesson <= 22 else sum(map(int, str(second_lesson)))
-        
-        third_lesson = first_lesson + second_lesson
-        third_lesson = third_lesson if third_lesson <= 22 else sum(map(int, str(third_lesson)))
-        
-        # Сохраняем уроки в контекст пользователя
-        context.user_data['lessons'] = {
-            "lesson_1": first_lesson,
-            "lesson_2": second_lesson,
-            "lesson_3": third_lesson,
-        }
-        
-        # Ответ пользователю
-        update.message.reply_text(
-            f"Ваши кармические уроки:\n"
-            f"Урок 1: {first_lesson} — Описание будет здесь.\n"
-            f"Урок 2: {second_lesson} — Описание будет здесь.\n"
-            f"Урок 3: {third_lesson} — Описание будет здесь.\n"
-            "Перейдите к команде /tasks, чтобы начать работать над заданиями."
-        )
+        date_of_birth = update.message.text
+        # Преобразуем дату в список чисел
+        day, month, year = map(int, date_of_birth.split('.'))
+        # Применяем формулу расчета уроков
+        lesson_1 = day + month + sum(map(int, str(year)))
+        lesson_2 = 2 * lesson_1 + lesson_1
+        lesson_3 = lesson_1 + lesson_2
+        # Применяем правило для чисел больше 22
+        lesson_1 = sum(map(int, str(lesson_1))) if lesson_1 > 22 else lesson_1
+        lesson_2 = sum(map(int, str(lesson_2))) if lesson_2 > 22 else lesson_2
+        lesson_3 = sum(map(int, str(lesson_3))) if lesson_3 > 22 else lesson_3
+
+        # Отправляем результаты
+        result_text = f"Твои кармические уроки:\nУрок 1: {lesson_1}\nУрок 2: {lesson_2}\nУрок 3: {lesson_3}"
+        await update.message.reply_text(result_text)
     except Exception as e:
-        update.message.reply_text("Ошибка! Пожалуйста, введите дату рождения в формате ДД.ММ.ГГГГ.")
+        await update.message.reply_text("Неправильный формат даты. Попробуй снова.")
+        logger.error(f"Error processing date: {e}")
 
-def tasks(update: Update, context: CallbackContext):
-    """Показ текущих заданий."""
-    lessons = context.user_data.get('lessons')
-    if not lessons:
-        update.message.reply_text("Пожалуйста, сначала рассчитайте свои уроки с помощью команды /lessons.")
-        return
-    
-    update.message.reply_text(
-        "Ваши текущие задания:\n"
-        f"Урок 1: Задание для урока {lessons['lesson_1']} — Заглушка.\n"
-        f"Урок 2: Задание для урока {lessons['lesson_2']} — Заглушка.\n"
-        f"Урок 3: Задание для урока {lessons['lesson_3']} — Заглушка.\n"
-        "Следуйте инструкциям и выполняйте задания!"
-    )
+# Функция для обработки кнопок
+async def button(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    await query.answer()
 
-def progress(update: Update, context: CallbackContext):
-    """Отображение прогресса пользователя."""
-    update.message.reply_text("Ваш текущий прогресс: 0 выполнено, 4 осталось. Это временная заглушка.")
+    if query.data == 'help':
+        await help_command(update, context)
+    elif query.data == 'info':
+        await info(update, context)
+    elif query.data == 'calculate':
+        await calculate(update, context)
 
-def payment(update: Update, context: CallbackContext):
-    """Информация об оплате."""
-    update.message.reply_text(
-        "Для участия необходимо внести залог 1000 рублей. Это временная заглушка."
-        "Нажмите кнопку ниже, чтобы оплатить.",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("Оплатить", url="https://example.com/payment")]
-        ])
-    )
+# Основная функция
+async def main():
+    # Создание приложения с токеном
+    application = Application.builder().token(TOKEN).build()
 
-def charity(update: Update, context: CallbackContext):
-    """Информация о благотворительности."""
-    update.message.reply_text(
-        "Описание благотворительности будет здесь. Это временная заглушка."
-    )
-
-def cancel(update: Update, context: CallbackContext):
-    """Отмена участия."""
-    update.message.reply_text("Ваше участие отменено. Это временная заглушка.")
-
-def feedback(update: Update, context: CallbackContext):
-    """Оставить отзыв."""
-    update.message.reply_text("Форма для отзыва будет здесь. Это временная заглушка.")
-
-def restart(update: Update, context: CallbackContext):
-    """Сброс прогресса и начало заново."""
-    context.user_data.clear()
-    update.message.reply_text("Ваш прогресс сброшен. Это временная заглушка.")
-
-# Основной код
-def main():
-    TOKEN = 7754998709:AAHf8cZmQocHwmy4p4CMJxll-d5bAvyymv0 
-    updater = Updater(TOKEN)
-    dp = updater.dispatcher
-
-    # Обработка команд
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("help", help_command))
-    dp.add_handler(CommandHandler("info", info))
-    dp.add_handler(CommandHandler("lessons", calculate_lessons))
-    dp.add_handler(CommandHandler("tasks", tasks))
-    dp.add_handler(CommandHandler("progress", progress))
-    dp.add_handler(CommandHandler("payment", payment))
-    dp.add_handler(CommandHandler("charity", charity))
-    dp.add_handler(CommandHandler("cancel", cancel))
-    dp.add_handler(CommandHandler("feedback", feedback))
-    dp.add_handler(CommandHandler("restart", restart))
-
-    # Обработка текста (расчет уроков)
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, calculate_lessons))
+    # Хендлеры
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_birthday))
+    application.add_handler(CallbackQueryHandler(button))
 
     # Запуск бота
-    updater.start_polling()
-    updater.idle()
+    await application.run_polling()
 
 if __name__ == "__main__":
-    main()
-
-
-
+    import asyncio
+    asyncio.run(main())
