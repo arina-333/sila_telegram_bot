@@ -1,6 +1,7 @@
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext, CallbackQueryHandler
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
+from telegram.constants import ParseMode
 import re  # Для проверки даты рождения
 from datetime import datetime
 
@@ -102,16 +103,6 @@ async def handle_payment(update: Update, context: CallbackContext) -> None:
     """Обрабатывает кнопку оплаты"""
     await update.message.reply_text("Спасибо за оплату! Начинаем проработку кармических уроков.")
 
-# Обработка callback-запросов (например, нажатие кнопок)
-async def handle_callback_query(update: Update, context: CallbackContext) -> None:
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == "calculate_lessons":
-        await update.callback_query.message.reply_text("Введите вашу дату рождения в формате ДД-ММ-ГГГГ.")
-    elif query.data == "pay_deposit":
-        await update.callback_query.message.reply_text("Спасибо за оплату! Начинаем проработку кармических уроков.")
-
 # Главная асинхронная функция, которая запускает бота
 async def main() -> None:
     """Основная функция для запуска бота"""
@@ -129,12 +120,12 @@ async def main() -> None:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_birthday))
 
     # Регистрируем обработчики кнопок
-    application.add_handler(CallbackQueryHandler(handle_callback_query))
+    application.add_handler(MessageHandler(filters.TEXT, start_working_on_lessons))
 
     # Запуск бота (уже внутри цикла событий)
     await application.run_polling()
 
-# Запуск асинхронной функции
+# Запуск асинхронной функции без asyncio.run()
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())
+    asyncio.create_task(main())  # Это должно быть async-задание, не запускать через asyncio.run()
