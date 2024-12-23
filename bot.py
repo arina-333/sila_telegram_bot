@@ -1,98 +1,131 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext, CallbackQueryHandler
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from telegram.constants import ParseMode
+import re  # Для проверки даты рождения
+from datetime import datetime
 
-# Включаем логирование
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+# Включаем логирование для получения отладочной информации
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Токен бота
-TOKEN = "7754998709:AAHf8cZmQocHwmy4p4CMJxll-d5bAvyymv0"
+# Функция для расчёта кармических уроков
+def calculate_karma_lessons(dob: str):
+    try:
+        # Преобразуем строку в дату
+        birth_date = datetime.strptime(dob, "%d-%m-%Y")
+        day = birth_date.day
+        month = birth_date.month
+        year = birth_date.year
 
-# Функция старта
+        # Расчёт уроков по предоставленной формуле
+        lesson1 = (day + month + sum([int(digit) for digit in str(year)]))
+        lesson2 = lesson1 * 2 + lesson1
+        lesson3 = lesson1 + lesson2
+
+        # Если числа больше 22, складываем их цифры
+        def reduce_to_22(number):
+            while number > 22:
+                number = sum([int(digit) for digit in str(number)])
+            return number
+
+        lesson1 = reduce_to_22(lesson1)
+        lesson2 = reduce_to_22(lesson2)
+        lesson3 = reduce_to_22(lesson3)
+
+        return lesson1, lesson2, lesson3
+    except Exception as e:
+        logger.error(f"Error calculating karma lessons: {e}")
+        return None
+
+# Асинхронная функция для обработки команды /start
 async def start(update: Update, context: CallbackContext) -> None:
-    # Приветствие и отправка приветственного видео
-    user_name = update.message.from_user.first_name
-    await update.message.reply(f"Привет, {user_name}!\nДобро пожаловать в матрицу судьбы!")
-    # Здесь можно отправить видео (например, с ID видео в Telegram)
-    # await update.message.reply_video(video_id)
-
-    # Меню с кнопками
-    keyboard = [
-        [InlineKeyboardButton("Помощь", callback_data='help')],
-        [InlineKeyboardButton("Информация о системе", callback_data='info')],
-        [InlineKeyboardButton("Рассчитать кармические уроки", callback_data='calculate')],
-    ]
+    """Отправляет приветственное сообщение при вызове команды /start"""
+    welcome_text = "Привет! Я твой бот для расчёта кармических уроков и проработки задач."
+    keyboard = [[InlineKeyboardButton("Расчитать мои уроки", callback_data='calculate_lessons')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text('Что ты хочешь сделать?', reply_markup=reply_markup)
+    await update.message.reply_text(welcome_text, reply_markup=reply_markup)
 
-# Функция помощи
+# Асинхронная функция для обработки команды /help
 async def help_command(update: Update, context: CallbackContext) -> None:
-    await update.message.reply("Я помогу тебе рассчитать кармические уроки.\n"
-                               "Сначала введи свою дату рождения.")
+    """Отправляет сообщение с инструкцией при вызове команды /help"""
+    help_text = (
+        "Этот бот может помочь тебе рассчитать кармические уроки. "
+        "Ты просто вводишь свою дату рождения (в формате ДД-ММ-ГГГГ), и я покажу тебе твои уроки."
+        " Также ты сможешь принять участие в проработке этих уроков, получая задания каждую неделю."
+    )
+    await update.message.reply_text(help_text)
 
-# Информация о системе расчета
+# Асинхронная функция для обработки команды /info
 async def info(update: Update, context: CallbackContext) -> None:
+    """Отправляет информацию о системе расчета при вызове команды /info"""
     info_text = (
-        "Моя система расчета матрицы судьбы поможет тебе понять кармические уроки "
-        "и направления для личностного роста. Я разработала эту систему, чтобы помочь людям "
-        "раскрыть свой потенциал и научиться преодолевать трудности жизни."
+        "Моя система расчета матрицы судьбы основана на числах, которые получают "
+        "люди в зависимости от их даты рождения. Ты можешь рассчитать кармические уроки, чтобы понять "
+        "свои жизненные задачи."
     )
     await update.message.reply_text(info_text)
 
-# Функция для расчета кармических уроков
-async def calculate(update: Update, context: CallbackContext) -> None:
-    await update.message.reply("Пожалуйста, введи свою дату рождения в формате ДД.ММ.ГГГГ.")
-
-# Функция для обработки введенной даты рождения
+# Асинхронная функция для обработки ввода даты рождения
 async def handle_birthday(update: Update, context: CallbackContext) -> None:
-    try:
-        date_of_birth = update.message.text
-        # Преобразуем дату в список чисел
-        day, month, year = map(int, date_of_birth.split('.'))
-        # Применяем формулу расчета уроков
-        lesson_1 = day + month + sum(map(int, str(year)))
-        lesson_2 = 2 * lesson_1 + lesson_1
-        lesson_3 = lesson_1 + lesson_2
-        # Применяем правило для чисел больше 22
-        lesson_1 = sum(map(int, str(lesson_1))) if lesson_1 > 22 else lesson_1
-        lesson_2 = sum(map(int, str(lesson_2))) if lesson_2 > 22 else lesson_2
-        lesson_3 = sum(map(int, str(lesson_3))) if lesson_3 > 22 else lesson_3
+    """Обрабатывает текстовое сообщение с датой рождения и рассчитывает кармические уроки"""
+    dob = update.message.text.strip()
+    
+    # Проверка формата даты
+    if re.match(r"\d{2}-\d{2}-\d{4}", dob):
+        lessons = calculate_karma_lessons(dob)
+        if lessons:
+            lesson1, lesson2, lesson3 = lessons
+            await update.message.reply_text(
+                f"Ваши кармические уроки:\nУрок 1: {lesson1}\nУрок 2: {lesson2}\nУрок 3: {lesson3}\n"
+                "Хотите начать проработку? Нажмите 'Да' для начала или 'Нет' для выхода."
+            )
+        else:
+            await update.message.reply_text("Произошла ошибка при расчете уроков. Попробуйте снова.")
+    else:
+        await update.message.reply_text("Пожалуйста, введите дату рождения в формате ДД-ММ-ГГГГ.")
 
-        # Отправляем результаты
-        result_text = f"Твои кармические уроки:\nУрок 1: {lesson_1}\nУрок 2: {lesson_2}\nУрок 3: {lesson_3}"
-        await update.message.reply_text(result_text)
-    except Exception as e:
-        await update.message.reply_text("Неправильный формат даты. Попробуй снова.")
-        logger.error(f"Error processing date: {e}")
+# Асинхронная функция для начала проработки кармических уроков
+async def start_working_on_lessons(update: Update, context: CallbackContext) -> None:
+    """Начинает процесс проработки кармических уроков"""
+    keyboard = [
+        [InlineKeyboardButton("Оплатить залог 1000 рублей", callback_data='pay_deposit')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        "Для начала проработки уроков, необходимо оплатить залог в размере 1000 рублей.",
+        reply_markup=reply_markup
+    )
 
-# Функция для обработки кнопок
-async def button(update: Update, context: CallbackContext) -> None:
-    query = update.callback_query
-    await query.answer()
+# Асинхронная функция для обработки кнопки оплаты
+async def handle_payment(update: Update, context: CallbackContext) -> None:
+    """Обрабатывает кнопку оплаты"""
+    await update.message.reply_text("Спасибо за оплату! Начинаем проработку кармических уроков.")
 
-    if query.data == 'help':
-        await help_command(update, context)
-    elif query.data == 'info':
-        await info(update, context)
-    elif query.data == 'calculate':
-        await calculate(update, context)
+# Главная асинхронная функция, которая запускает бота
+async def main() -> None:
+    """Основная функция для запуска бота"""
+    TOKEN = 'your-telegram-bot-token'  # Замените на свой токен
 
-# Основная функция
-async def main():
-    # Создание приложения с токеном
+    # Создаем асинхронное приложение
     application = Application.builder().token(TOKEN).build()
 
-    # Хендлеры
+    # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("info", info))
+
+    # Регистрируем обработчик ввода даты рождения
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_birthday))
-    application.add_handler(CallbackQueryHandler(button))
+
+    # Регистрируем обработчики кнопок
+    application.add_handler(MessageHandler(filters.TEXT, start_working_on_lessons))
 
     # Запуск бота
     await application.run_polling()
 
+# Запуск асинхронной функции
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
