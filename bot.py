@@ -126,7 +126,6 @@ async def main() -> None:
 
 # Запуск асинхронной функции без asyncio.run()
 if __name__ == "__main__":
+    # Прямой вызов main(), так как библиотека сама использует цикл событий
     import asyncio
-    # Прямой вызов, так как библиотека сама использует цикл событий
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())  # Запуск async функции main()
+    asyncio.run(main())
