@@ -105,7 +105,7 @@ async def handle_payment(update: Update, context: CallbackContext) -> None:
 # Главная асинхронная функция, которая запускает бота
 async def main() -> None:
     """Основная функция для запуска бота"""
-    TOKEN = '7754998709:AAHf8cZmQocHwmy4p4CMJxll-d5bAvyymv0' 
+    TOKEN = '7754998709:AAHf8cZmQocHwmy4p4CMJxll-d5bAvyymv0'  
 
     # Создаем асинхронное приложение
     application = Application.builder().token(TOKEN).build()
@@ -128,4 +128,5 @@ async def main() -> None:
 if __name__ == "__main__":
     import asyncio
     # Прямой вызов, так как библиотека сама использует цикл событий
-    asyncio.run(main())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())  # Запуск async функции main()
